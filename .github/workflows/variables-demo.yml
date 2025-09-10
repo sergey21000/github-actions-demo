@@ -1,0 +1,144 @@
+name: Variables Demo
+
+# запуск только вручную
+on: workflow_dispatch
+
+# можно задавать глобальные переменные окружения
+env:
+  ENV_VAR: var_value
+
+jobs:
+  variables-demo:
+    runs-on: ${{ matrix.os }}
+    # инициализация матрицы, все комбинации который будут перепробованы
+    strategy:
+      matrix:
+        # например если добавить python_version: ["3.10", "3.12"] то будет перебор всех версий на всех ОС
+        os: [ubuntu-latest, windows-latest]
+        # include необязателен, может пригодится для указания доп инфо
+        include:
+          - os: ubuntu-latest
+            os-name: Linux
+          - os: windows-latest
+            os-name: Windows
+      # если одна job падает → остальные jobs продолжают выполняться, установить true чтобы прервать все
+      fail-fast: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Show different variable access methods
+      shell: bash
+      run: |
+        echo "=== Разные способы обращения к переменным ==="
+        echo "1. Через environment variables: $RUNNER_OS"
+        echo "2. Через GitHub context: ${{ runner.os }}"
+        echo "3. Через matrix: ${{ matrix.os-name }}"
+
+    - name: Print basic system info (Linux)
+      # условие что если текущая ОС - Linux
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        echo "=== Basic Linux Info ==="
+        echo "OS: $(uname -s)"
+        echo "Kernel: $(uname -r)"
+        echo "Arch: $(uname -m)"
+        echo "Current dir: $(pwd)"
+        echo "User: $(whoami)"
+        echo "Home: $HOME"
+
+    - name: Print basic system info (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Write-Host "=== Basic Windows Info ==="
+        Write-Host "OS: $([System.Environment]::OSVersion.Platform)"
+        Write-Host "Version: $([System.Environment]::OSVersion.Version)"
+        Write-Host "Current dir: $(Get-Location)"
+        Write-Host "User: $env:USERNAME"
+        Write-Host "Home: $env:USERPROFILE"
+
+    - name: Demo environment variables
+      shell: bash
+      run: |
+        echo "=== Environment Variables ==="
+        echo "RUNNER_OS: $RUNNER_OS"
+        echo "RUNNER_NAME: $RUNNER_NAME"
+        echo "RUNNER_TEMP: $RUNNER_TEMP"
+        echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+        echo "GITHUB_WORKFLOW: $GITHUB_WORKFLOW"
+        echo "ENV_VAR: $ENV_VAR"
+
+    - name: Demo GitHub context variables
+      shell: bash
+      run: |
+        echo "=== GitHub Context Variables ==="
+        echo "runner.os: ${{ runner.os }}"
+        echo "runner.temp: ${{ runner.temp }}"
+        echo "runner.name: ${{ runner.name }}"
+        echo "github.repository: ${{ github.repository }}"
+        echo "github.repository: ${{ github.repository_owner }}/${{ github.event.repository.name }}"
+        echo "github.repository_owner: ${{ github.repository_owner }}"
+        echo "github.event.repository.name: ${{ github.event.repository.name }}"
+        echo "github.workflow: ${{ github.workflow }}"
+        echo "github.actor: ${{ github.actor }}"
+        echo "github.sha: ${{ github.sha }}"
+        echo "github.ref: ${{ github.ref }}"
+        echo "env.ENV_VAR: ${{ env.ENV_VAR }}"
+
+    - name: Demo matrix variables
+      shell: bash
+      run: |
+        echo "=== Matrix Variables ==="
+        echo "matrix.os: ${{ matrix.os }}"
+        echo "matrix.os-name: ${{ matrix.os-name }}"
+
+    - name: Demo different syntax examples
+      shell: bash
+      run: |
+        echo "=== Примеры разных синтаксисов ==="
+        
+        # Environment variables (bash style)
+        echo "Environment: $GITHUB_REPOSITORY"
+        
+        # GitHub context (template style)
+        echo "Context: ${{ github.repository }}"
+        
+        # комбинирование
+        echo "Combined: Repository $GITHUB_REPOSITORY on ${{ runner.os }}"
+        
+        # переменные в выражениях
+        echo "Expression: ${{ github.repository == 'username/repo' }}"
+        echo "OS check: ${{ runner.os == 'Linux' }}"
+
+    - name: Demo conditional based on variables
+      shell: bash
+      run: |
+        echo "=== Условные выражения ==="
+        echo "Is Linux: ${{ runner.os == 'Linux' }}"
+        echo "Is Windows: ${{ runner.os == 'Windows' }}"
+        echo "Repository contains 'demo': ${{ contains(github.repository, 'demo') }}"
+        
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          echo "Это Linux runner!"
+        else
+          echo "Это не Linux runner!"
+        fi
+
+    - name: Create output variables
+      shell: bash
+      run: |
+        echo "Создаем output variables"
+        echo "current_time=$(date)" >> $GITHUB_OUTPUT
+        echo "runner_os=$RUNNER_OS" >> $GITHUB_OUTPUT
+        echo "is_production=${{ github.ref == 'refs/heads/main' }}" >> $GITHUB_OUTPUT
+
+    - name: Use output variables
+      shell: bash
+      run: |
+        echo "=== Output Variables ==="
+        echo "Current time: ${{ steps.create_output_variables.outputs.current_time }}"
+        echo "Runner OS from output: ${{ steps.create_output_variables.outputs.runner_os }}"
+        echo "Is production: ${{ steps.create_output_variables.outputs.is_production }}"

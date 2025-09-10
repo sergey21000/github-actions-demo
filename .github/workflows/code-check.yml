@@ -1,1 +1,81 @@
+# название Workflow (любое)
+name: Python Code Check
 
+# условия при которых оно будет запускаться
+# при pull_request или push в ветку main или вручную (workflow_dispatch)
+on:
+  pull_request:
+    branches: main
+  push:
+    branches: main
+  workflow_dispatch:
+
+# jobs которые будут выполнятся на отдельных машинах
+jobs:
+  # название job (любое)
+  code-quality:
+    # ОС на которой будет запускаться тест (ubuntu-24.04)
+    # https://github.com/actions/runner-images
+    runs-on: ubuntu-latest
+    # шаги которые будут последовательно выполняться
+    # имя шага - любое, далее используется либо run - команды которые будем вводит ьв терминал
+    # либо uses - это готовые action с маркетплейса https://github.com/marketplace (расширения)
+    steps:
+    # actions/checkout@v4 - action для того чтобы машина на которой запущен job имела доступ к текущему репозиторию
+    # https://github.com/marketplace/actions/checkout
+    - name: Checkout code
+      uses: actions/checkout@v4
+    # установка python https://github.com/marketplace/actions/setup-python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    # установка зависимостей - run запускает обычную команду в терминале
+    # можно ставить 
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    # проверка кода на PEP8 - по умолчанию если проверка не пройдет то весь job завершится с ошибкой
+    # поэтому ставим условие что если ошибка то просто вывести сообщение 
+    # это упрощенный способ, есть еще флаг continue-on-error
+    - name: Check code style with flake8
+      run: |
+        python -m flake8 src/ --show-source || echo "❌ Flake8 check failed, but continuing..."
+
+    - name: Check types with mypy
+      run: |
+        python -m mypy src/ --ignore-missing-imports || echo "❌ MyPy check failed, but continuing..."
+        
+    - name: Run tests
+      run: |
+        python -m pytest -v || echo "❌ Pytest check failed, but continuing..."
+
+    - name: Security check with Bandit
+      # флаг continue-on-error означает в случае ошибки не завершать job
+      continue-on-error: true
+      # создаем папку для отчетов и сохраняем их туда
+      run: |
+        mkdir -p bandit-reports
+        python -m bandit -r src/ -f txt -o bandit-reports/bandit-report.txt
+        python -m bandit -r src/ -f json -o bandit-reports/bandit-report.json
+        python -m bandit -r src/ -f html -o bandit-reports/bandit-report.html
+        python -m bandit -r src/ -f csv -o bandit-reports/bandit-report.csv
+    
+    # загрузка файлов из машины ранера на свой github в артефакты
+    # содержимое папки bandit-reports будет доступно для скачивания как архив
+    - name: Upload Bandit reports as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-reports
+        path: bandit-reports/
+
+    # вывод содержимого текстового файла с отчетом Bandit, если тот существует
+    - name: Show Bandit summary
+      run: |
+        echo "Bandit Security Summary:"
+        echo "==========================="
+        if [ -f bandit-reports/bandit-report.txt ]; then
+          cat bandit-reports/bandit-report.txt
+        else
+          echo "Bandit report not found"
+        fi
