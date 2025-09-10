@@ -31,7 +31,7 @@ github-actions-demo/
 │   │── conftest.py                 # хранилище фикстур
 │   └── test_calculator.py          # модульные тесты (pytest)
 │
-└── requirements.txt                # зависимости: flake8, pytest, mypy
+└── requirements.txt                # зависимости: flake8, pytest, mypy, bandit
 └── README.md                       # описание проекта и инструкции по запуску
 ```
 
@@ -40,7 +40,7 @@ github-actions-demo/
 
 **1) Клонирование репозитория**  
 
-```sh
+```shell
 git clone https://github.com/sergey21000/github-actions-demo.git
 cd github-actions-demo
 ```
@@ -92,11 +92,11 @@ flake8 src/ --show-source
 ```shell
 bandit -r src/
 ```
+После проверки можно скачать отчеты bandit (в разделе `Artifacts` из Workflow run)
 
 
 # Запуск через Github Actions
 
----
 Workflow для тестирования, проверки типов и PEP8 (`code-check.yml`) запсукается автоматически при пуше (отправке кода в репозиторий) или вручую  
 Workflow для демонстрации работы с переменными окружения запускается вручную
 
